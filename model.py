@@ -39,11 +39,11 @@ class Attention(nn.Module):
 
 
 class SqueezeNet(nn.Module):
-    def __init__(self, version='1_0', num_classes=5):
+    def __init__(self, version='1_1', num_classes=5):
         super(SqueezeNet, self).__init__()
         self.num_classes = num_classes
         self.version = version
-        final_conv, final_conv_break, final_conv_gas = None, None, None
+        final_conv = None
         if version == '1_0':
             self.features = nn.Sequential(
                 nn.Conv2d(3, 96, kernel_size=7, stride=2),
@@ -115,106 +115,13 @@ class SqueezeNet(nn.Module):
                 nn.Dropout(p=0.5),
                 final_fc,
                 nn.LogSoftmax(dim=1))
-        elif version == 'dist':
-            self.features = nn.Sequential(
-                nn.Conv2d(3, 64, kernel_size=3, stride=2),
-                nn.ReLU(inplace=True),
-                nn.MaxPool2d(kernel_size=3, stride=2, ceil_mode=True),
-                Fire(64, 16, 64, 64),
-                Fire(128, 16, 64, 64),
-                nn.MaxPool2d(kernel_size=3, stride=2, ceil_mode=True),
-                Fire(128, 32, 128, 128),
-                Fire(256, 32, 128, 128),
-                nn.MaxPool2d(kernel_size=3, stride=2, ceil_mode=True),
-                Fire(256, 48, 192, 192),
-                Fire(384, 48, 192, 192),
-                Fire(384, 64, 256, 256),
-                Fire(512, 64, 256, 256))
-            # Final convolution is initialized differently from the rest
-            final_conv_break = nn.Conv2d(512, 4, kernel_size=1)
-            self.head_break = nn.Sequential(
-                nn.Dropout(p=0.5),
-                final_conv_break,
-                nn.ReLU(inplace=True),
-                nn.AdaptiveAvgPool2d((1, 1)),
-                nn.LogSoftmax(dim=1))
-            final_conv_gas = nn.Conv2d(512, 4, kernel_size=1)
-            self.head_gas = nn.Sequential(
-                nn.Dropout(p=0.5),
-                final_conv_gas,
-                nn.ReLU(inplace=True),
-                nn.AdaptiveAvgPool2d((1, 1)),
-                nn.LogSoftmax(dim=1))
-            self.head = lambda x: (self.head_break(x), self.head_gas(x))
-        elif version == 'SA':
-            self.features = nn.Sequential(
-                nn.Conv2d(3, 64, kernel_size=3, stride=2),
-                nn.ReLU(inplace=True),
-                nn.MaxPool2d(kernel_size=3, stride=2, ceil_mode=True),
-                Attention(64, 64),
-                Fire(64, 16, 64, 64),
-                Fire(128, 16, 64, 64),
-                nn.MaxPool2d(kernel_size=3, stride=2, ceil_mode=True),
-                Attention(128, 128),
-                Fire(128, 32, 128, 128),
-                Fire(256, 32, 128, 128),
-                nn.MaxPool2d(kernel_size=3, stride=2, ceil_mode=True),
-                Attention(256, 256),
-                Fire(256, 48, 192, 192),
-                Fire(384, 48, 192, 192),
-                Fire(384, 64, 256, 256),
-                Fire(512, 64, 256, 256))
-            # Final convolution is initialized differently from the rest
-            final_conv = nn.Conv2d(512, self.num_classes, kernel_size=1)
-            self.masks = nn.Sequential(
-                nn.Dropout(p=0.5),
-                final_conv)
-            self.attention = nn.Sigmoid()
-            self.head = nn.Sequential(
-                nn.ReLU(inplace=True),
-                nn.AdaptiveAvgPool2d((1, 1)),
-                nn.LogSoftmax(dim=1))
-        elif version == 'dist_SA':
-            self.features = nn.Sequential(
-                nn.Conv2d(3, 64, kernel_size=3, stride=2),
-                nn.ReLU(inplace=True),
-                nn.MaxPool2d(kernel_size=3, stride=2, ceil_mode=True),
-                Attention(64, 64),
-                Fire(64, 16, 64, 64),
-                Fire(128, 16, 64, 64),
-                nn.MaxPool2d(kernel_size=3, stride=2, ceil_mode=True),
-                Attention(128, 128),
-                Fire(128, 32, 128, 128),
-                Fire(256, 32, 128, 128),
-                nn.MaxPool2d(kernel_size=3, stride=2, ceil_mode=True),
-                Attention(256, 256),
-                Fire(256, 48, 192, 192),
-                Fire(384, 48, 192, 192),
-                Fire(384, 64, 256, 256),
-                Fire(512, 64, 256, 256))
-            # Final convolution is initialized differently from the rest
-            final_conv_break = nn.Conv2d(512, 4, kernel_size=1)
-            self.head_break = nn.Sequential(
-                nn.Dropout(p=0.5),
-                final_conv_break,
-                nn.ReLU(inplace=True),
-                nn.AdaptiveAvgPool2d((1, 1)),
-                nn.LogSoftmax(dim=1))
-            final_conv_gas = nn.Conv2d(512, 4, kernel_size=1)
-            self.head_gas = nn.Sequential(
-                nn.Dropout(p=0.5),
-                final_conv_gas,
-                nn.ReLU(inplace=True),
-                nn.AdaptiveAvgPool2d((1, 1)),
-                nn.LogSoftmax(dim=1))
-            self.head = lambda x: (self.head_break(x), self.head_gas(x))
         else:
             raise ValueError("Unsupported SqueezeNet version {version}:"
-                             "1_0/1_1/SA/FC/dist/dist_SA expected".format(version=version))
+                             "1_0/1_1/FC expected".format(version=version))
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
-                if m is final_conv or m is final_conv_gas or m is final_conv_break:
+                if m is final_conv:
                     init.normal_(m.weight, mean=0.0, std=0.01)
                 else:
                     init.kaiming_uniform_(m.weight)
@@ -227,10 +134,6 @@ class SqueezeNet(nn.Module):
             x = x.view(x.size(0), -1)
             x = self.head(x)
             return x, None
-        elif self.version == 'dist' or self.version == 'dist_SA':
-            x = self.features(x)
-            x = self.head(x)
-            return x
         else:
             x = self.features(x)
             x = self.masks(x)

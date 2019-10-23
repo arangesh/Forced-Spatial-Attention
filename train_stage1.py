@@ -8,6 +8,8 @@ import torchvision.transforms as transforms
 import os
 import time
 import glob
+import json
+from datetime import datetime
 from statistics import mean
 import random
 import model
@@ -19,8 +21,9 @@ from PIL import Image
 from sklearn.metrics import confusion_matrix
 from sklearn.utils.multiclass import unique_labels
 
-parser = argparse.ArgumentParser('Options for training FAFAC models in PyTorch...')
-parser.add_argument('--version', type=str, default=None, help='which version of SqueezeNet to load (1_0/1_1/FC/dist/dist_SA/SA)')
+parser = argparse.ArgumentParser('Options for training models using Forced Spatial Attention in PyTorch...')
+parser.add_argument('--dataset-root-path', type=str, default=None, help='path to dataset')
+parser.add_argument('--version', type=str, default=None, help='which version of SqueezeNet to load (1_0/1_1/FC)')
 parser.add_argument('--output-dir', type=str, default=None, help='output directory for model and logs')
 parser.add_argument('--snapshot', type=str, default=None, help='use a pre-trained model snapshot')
 parser.add_argument('--batch-size', type=int, default=64, metavar='N', help='batch size for training')
@@ -31,7 +34,7 @@ parser.add_argument('--momentum', type=float, default=0.9, metavar='M', help='mo
 parser.add_argument('--weight-decay', type=float, default=0.0005, metavar='WD', help='weight decay')
 parser.add_argument('--log-schedule', type=int, default=10, metavar='N', help='number of iterations to print/save log after')
 parser.add_argument('--seed', type=int, default=1, help='set seed to some constant value to reproduce experiments')
-parser.add_argument('--FA', action='store_true', default=False, help='used forced attention loss for training')
+parser.add_argument('--FSA', action='store_true', default=False, help='used forced spatial attention loss for training')
 parser.add_argument('--no-cuda', action='store_true', default=False, help='do not use cuda for training')
 parser.add_argument('--inference', action='store_true', default=False, help='perform inference')
 parser.add_argument('--random-transforms', action='store_true', default=False, help='apply random transforms to input while training')
@@ -39,13 +42,13 @@ parser.add_argument('--random-transforms', action='store_true', default=False, h
 
 args = parser.parse_args()
 # check args
+if if args.dataset_root_path is None:
+    assert False, 'Path to dataset not provided!'
 if args.inference and args.snapshot is None:
     assert False, 'No model snapshot provided for inference!'
-if args.inference and (args.version == 'dist' or args.version == 'dist_SA'):
-    assert False, 'Cannot use this model version for inference!'
-if args.FA and (args.version == 'FC' or args.version == 'dist' or args.version == 'dist_SA'):
+if args.FSA and (args.version == 'FC'):
     assert False, 'Cannot use this model version for forced attention loss!'
-if all(args.version != x for x in ['1_0', '1_1', 'FC', 'dist', 'dist_SA', 'SA']):
+if all(args.version != x for x in ['1_0', '1_1', 'FC']):
     assert False, 'Model version not recognized!'
 
 # Output class labels
@@ -54,24 +57,17 @@ activity_classes = ['Away from pedals', 'Hovering over Acc', 'Hovering over Brak
 # setup args
 args.cuda = not args.no_cuda and torch.cuda.is_available()
 if args.output_dir is None:
-    if args.FA:
-        args.output_dir = args.version + '_FA'
-    else:
-        args.output_dir = args.version
-    if args.snapshot is None:
-        args.output_dir = args.output_dir + '_from_scratch'
-    else:
-        args.output_dir = args.output_dir + '_' + os.path.basename(args.snapshot)[:-4]
-    if args.random_transforms:
-        args.output_dir = args.output_dir + '_rt'
-    args.output_dir = os.path.join('..', 'experiments', args.output_dir)
+    args.output_dir = datetime.now().strftime("%Y-%m-%d-%H:%M")
+    args.output_dir = os.path.join('.', 'experiments', args.output_dir)
 
-if args.inference:
-    args.output_dir = '.'
-elif not os.path.exists(args.output_dir):
+if not os.path.exists(args.output_dir):
     os.makedirs(args.output_dir)
 else:
     assert False, 'Output directory already exists!'
+
+# store config in output directory
+with open(os.path.join(args.output_dir, 'config.json'), 'w') as f:
+    json.dump(vars(args), f)
 
 torch.manual_seed(args.seed)
 if args.cuda:
@@ -125,7 +121,7 @@ def plot_confusion_matrix(y_true, y_pred, classes, normalize=True, title=None, c
     return
 
 
-def FA_loss(output_masks, target_masks, labels):
+def FSA_loss(output_masks, target_masks, labels):
     loss = 0
     for i, label in enumerate(labels):
         if label != 0:
@@ -145,27 +141,27 @@ def get_classification_data(split):
     if split == 'train':
         all_images = []
         all_labels = []
-        dir_tmp = '/mnt/cvrr-nas/WorkArea4/WorkArea4_Backedup/Datasets/NADS-UIowa-Foot/raw_images/Away from pedals/*/*.jpg'
+        dir_tmp = os.path.join(args.dataset_root_path, 'raw_images', 'Away from pedals', '*', '*.jpg')
         tmp = sorted(glob.glob(dir_tmp))
         all_labels += [0]*len(tmp)
         all_images += tmp
 
-        dir_tmp = '/mnt/cvrr-nas/WorkArea4/WorkArea4_Backedup/Datasets/NADS-UIowa-Foot/raw_images/Hovering over Acc/*/*.jpg'
+        dir_tmp = os.path.join(args.dataset_root_path, 'raw_images', 'Hovering over Acc', '*', '*.jpg')
         tmp = sorted(glob.glob(dir_tmp))
         all_labels += [1]*len(tmp)
         all_images += tmp
 
-        dir_tmp = '/mnt/cvrr-nas/WorkArea4/WorkArea4_Backedup/Datasets/NADS-UIowa-Foot/raw_images/Hovering over Brake/*/*.jpg'
+        dir_tmp = os.path.join(args.dataset_root_path, 'raw_images', 'Hovering over Brake', '*', '*.jpg')
         tmp = sorted(glob.glob(dir_tmp))
         all_labels += [2]*len(tmp)
         all_images += tmp
 
-        dir_tmp = '/mnt/cvrr-nas/WorkArea4/WorkArea4_Backedup/Datasets/NADS-UIowa-Foot/raw_images/On Accelerator/*/*.jpg'
+        dir_tmp = os.path.join(args.dataset_root_path, 'raw_images', 'On Accelerator', '*', '*.jpg')
         tmp = sorted(glob.glob(dir_tmp))
         all_labels += [3]*len(tmp)
         all_images += tmp
 
-        dir_tmp = '/mnt/cvrr-nas/WorkArea4/WorkArea4_Backedup/Datasets/NADS-UIowa-Foot/raw_images/On Brake/*/*.jpg'
+        dir_tmp = os.path.join(args.dataset_root_path, 'raw_images', 'On Brake', '*', '*.jpg')
         tmp = sorted(glob.glob(dir_tmp))
         all_labels += [4]*len(tmp)
         all_images += tmp
@@ -184,68 +180,40 @@ def get_classification_data(split):
         images = []
         labels = []
         for val_subj in val_subjects:
-            dir_tmp = '/mnt/cvrr-nas/WorkArea4/WorkArea4_Backedup/Datasets/NADS-UIowa-Foot/raw_images/Away from pedals/'+val_subj+'/*.jpg'
+            dir_tmp = os.path.join(args.dataset_root_path, 'raw_images', 'Away from pedals', val_subj, '*.jpg')
             tmp = sorted(glob.glob(dir_tmp))
             labels += [0]*len(tmp)
             images += tmp
 
         for val_subj in val_subjects:
-            dir_tmp = '/mnt/cvrr-nas/WorkArea4/WorkArea4_Backedup/Datasets/NADS-UIowa-Foot/raw_images/Hovering over Acc/'+val_subj+'/*.jpg'
+            dir_tmp = os.path.join(args.dataset_root_path, 'raw_images', 'Hovering over Acc', val_subj, '*.jpg')
             tmp = sorted(glob.glob(dir_tmp))
             labels += [1]*len(tmp)
             images += tmp
 
         for val_subj in val_subjects:
-            dir_tmp = '/mnt/cvrr-nas/WorkArea4/WorkArea4_Backedup/Datasets/NADS-UIowa-Foot/raw_images/Hovering over Brake/'+val_subj+'/*.jpg'
+            dir_tmp = os.path.join(args.dataset_root_path, 'raw_images', 'Hovering over Brake', val_subj, '*.jpg')
             tmp = sorted(glob.glob(dir_tmp))
             labels += [2]*len(tmp)
             images += tmp
 
         for val_subj in val_subjects:
-            dir_tmp = '/mnt/cvrr-nas/WorkArea4/WorkArea4_Backedup/Datasets/NADS-UIowa-Foot/raw_images/On Accelerator/'+val_subj+'/*.jpg'
+            dir_tmp = os.path.join(args.dataset_root_path, 'raw_images', 'On Accelerator', val_subj, '*.jpg')
             tmp = sorted(glob.glob(dir_tmp))
             labels += [3]*len(tmp)
             images += tmp
 
         for val_subj in val_subjects:
-            dir_tmp = '/mnt/cvrr-nas/WorkArea4/WorkArea4_Backedup/Datasets/NADS-UIowa-Foot/raw_images/On Brake/'+val_subj+'/*.jpg'
+            dir_tmp = os.path.join(args.dataset_root_path, 'raw_images', 'On Brake', val_subj, '*.jpg')
             tmp = sorted(glob.glob(dir_tmp))
             labels += [4]*len(tmp)
             images += tmp
 
         print('Loaded %d foot images!' % len(labels))
 
-    attention_masks = loadmat('../matlab/NADS_max.mat')['masks']  # (H, W, num_classes)
+    attention_masks = loadmat('./matlab/stage1_attention_mask.mat')['masks']  # (H, W, num_classes)
     time.sleep(1)
     return images, np.array(labels, dtype='int64'), attention_masks
-
-
-def get_regression_data():
-    dir_tmp = '/mnt/cvrr-nas/WorkArea4/WorkArea4_Backedup/Datasets/Tesla/Data/setup5/*/foot.mp4'
-    tmp = sorted(glob.glob(dir_tmp))
-    drives = [os.path.dirname(x) for x in tmp]
-
-    videos = []
-    distances = []
-    frames = []
-
-    for drive in drives:
-        videos.append(os.path.join(drive, 'foot.mp4'))
-        dist = open(os.path.join(drive, 'pprocessed', 'foot_hover', 'frame', 'break_gas.txt')).readlines()
-        dist = np.array([list(map(int, x.split(','))) for x in dist], dtype=np.int64)
-        # use frames with IR readings inside sensor range
-        frames.append(np.argwhere(np.logical_or(dist[:, 0] != 255, dist[:, 1] != 255)))
-        # 0: [0, 64), 1:[64, 128), 2:[128, 192), 3:[192, 256)
-        tmp = np.zeros_like(dist, dtype=np.int64)
-        tmp[np.logical_and(dist >= 0, dist < 64)] = 0
-        tmp[np.logical_and(dist >= 64, dist < 128)] = 1
-        tmp[np.logical_and(dist >= 128, dist < 192)] = 2
-        tmp[np.logical_and(dist >= 192, dist < 256)] = 3
-        distances.append(tmp)
-
-    attention_masks = loadmat('LISAT.mat')['masks']  # (H, W, num_classes)
-    time.sleep(1)
-    return videos, distances, frames, attention_masks
 
 
 class Dataset(data.Dataset):
@@ -259,72 +227,40 @@ class Dataset(data.Dataset):
         self.normalize = transforms.Normalize((0.491399689874, 0.482158419622, 0.446530924224), (0.247032237587, 0.243485133253, 0.261587846975))
         if random_transforms:
             self.transforms = transforms.Compose([transforms.Resize((256, 256)),
-                #transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.2),
                 transforms.RandomRotation((-15, 15)), 
                 transforms.RandomResizedCrop((224, 224), scale=(0.8, 1.0)),
                 transforms.ToTensor()])
         else:
             self.transforms = None
 
-        if self.version == 'dist' or self.version == 'dist_SA':
-            self.videos, self.distances, self.frames, self.attention_masks = get_regression_data()
-        elif self.version == '1_0' or self.version == '1_1' or self.version == 'FC' or self.version == 'SA':
-            self.images, self.labels, self.attention_masks = get_classification_data(self.split)
+        self.images, self.labels, self.attention_masks = get_classification_data(self.split)
         print('Finished preparing '+split+' dataset!')
 
     def __len__(self):
         'Denotes the total number of samples'
-        if self.version == 'dist' or self.version == 'dist_SA':
-            return 500*args.batch_size
-        elif self.version == '1_0' or self.version == '1_1' or self.version == 'FC' or self.version == 'SA':
-            return len(self.labels)
+        return len(self.labels)
 
     def __getitem__(self, index):
         'Generates one sample of data'
-        if self.version == 'dist' or self.version == 'dist_SA':
-            while True:
-                drive = random.randint(0, len(self.videos)-1)
-                frame = self.frames[drive][random.randint(0, self.frames[drive].size-1), 0]
-                video = cv2.VideoCapture(self.videos[drive])
-                video.set(cv2.CAP_PROP_POS_FRAMES, frame)
-                _, im = video.read()
-                video.release()
-                if _:
-                    break
-            im = Image.fromarray(cv2.cvtColor(im, cv2.COLOR_BGR2RGB))
-            
-            if self.transforms is None:
-                X = self.normalize(self.prepare_input(im))
-                attention_masks = self.prepare_input(Image.fromarray(self.attention_masks))
-            else:
-                # create explicit seed so that same random transform is applied to both image and mask
-                seed = random.randint(0,2**32)
-                random.seed(seed)
-                X = self.normalize(self.transforms(im))
-                random.seed(seed)
-                attention_masks = self.transforms(Image.fromarray(self.attention_masks))
-            y = self.distances[drive][frame, :]
-            return X, attention_masks, y
-        elif self.version == '1_0' or self.version == '1_1'  or self.version == 'FC' or self.version == 'SA':
-            y = self.labels[index]
-            im = Image.fromarray(cv2.cvtColor(cv2.imread(self.images[index]), cv2.COLOR_BGR2RGB))
+        y = self.labels[index]
+        im = Image.fromarray(cv2.cvtColor(cv2.imread(self.images[index]), cv2.COLOR_BGR2RGB))
 
-            if self.transforms is None:
-                X = self.normalize(self.prepare_input(im))
-                attention_masks_1 = self.prepare_input(Image.fromarray(self.attention_masks[:, :, :3]))
-                attention_masks_2 = self.prepare_input(Image.fromarray(self.attention_masks[:, :, 2:]))
-                attention_masks = torch.cat((attention_masks_1, attention_masks_2[1:, :, :]), 0)
-            else:
-                # create explicit seed so that same random transform is applied to both image and mask
-                seed = random.randint(0,2**32)
-                random.seed(seed)
-                X = self.normalize(self.transforms(im))
-                random.seed(seed)
-                attention_masks_1 = self.transforms(Image.fromarray(self.attention_masks[:, :, :3]))
-                random.seed(seed)
-                attention_masks_2 = self.transforms(Image.fromarray(self.attention_masks[:, :, 2:]))
-                attention_masks = torch.cat((attention_masks_1, attention_masks_2[1:, :, :]), 0)
-            return X, attention_masks, y
+        if self.transforms is None:
+            X = self.normalize(self.prepare_input(im))
+            attention_masks_1 = self.prepare_input(Image.fromarray(self.attention_masks[:, :, :3]))
+            attention_masks_2 = self.prepare_input(Image.fromarray(self.attention_masks[:, :, 2:]))
+            attention_masks = torch.cat((attention_masks_1, attention_masks_2[1:, :, :]), 0)
+        else:
+            # create explicit seed so that same random transform is applied to both image and mask
+            seed = random.randint(0,2**32)
+            random.seed(seed)
+            X = self.normalize(self.transforms(im))
+            random.seed(seed)
+            attention_masks_1 = self.transforms(Image.fromarray(self.attention_masks[:, :, :3]))
+            random.seed(seed)
+            attention_masks_2 = self.transforms(Image.fromarray(self.attention_masks[:, :, 2:]))
+            attention_masks = torch.cat((attention_masks_1, attention_masks_2[1:, :, :]), 0)
+        return X, attention_masks, y
 
 
 kwargs = {'batch_size': args.batch_size, 'shuffle': True, 'num_workers': 6}
@@ -332,8 +268,7 @@ if args.inference:
     test_loader = torch.utils.data.DataLoader(Dataset(args.version, 'test', False), **kwargs)
 else:
     train_loader = torch.utils.data.DataLoader(Dataset(args.version, 'train', args.random_transforms), **kwargs)
-    if args.version == '1_0' or args.version == '1_1' or args.version == 'FC' or args.version == 'SA':
-        val_loader = torch.utils.data.DataLoader(Dataset(args.version, 'val', False), **kwargs)
+    val_loader = torch.utils.data.DataLoader(Dataset(args.version, 'val', False), **kwargs)
 
 # global var to store best validation accuracy across all epochs
 best_accuracy = 0.0
@@ -345,11 +280,6 @@ def train(net, epoch):
     correct = 0
     net.train()
     for b_idx, (data, attention, targets) in enumerate(train_loader):
-        #attention_np = attention.data.numpy()
-        #viz_img = np.vstack((np.hstack((attention_np[10, 1, :, :], attention_np[10, 2, :, :])), np.hstack((attention_np[10, 3, :, :], attention_np[10, 4, :, :]))))
-        #cv2.imshow('Attention', viz_img)
-        #cv2.waitKey(0)
-        #cv2.destroyAllWindows()
         if args.cuda:
             data, attention, targets = data.cuda(), attention.cuda(), targets.cuda()
         # convert the data and targets into Variable and cuda form
@@ -358,23 +288,17 @@ def train(net, epoch):
         # train the network
         optimizer.zero_grad()
 
-        if args.version == 'dist' or args.version == 'dist_SA':
-            break_scores, gas_scores = net.forward(data)
-            break_scores = break_scores.view(-1, 4)
-            gas_scores = gas_scores.view(-1, 4)
-            loss = F.nll_loss(break_scores, targets[:, 0]) + F.nll_loss(gas_scores, targets[:, 1])
-        elif args.version == '1_0' or args.version == '1_1' or args.version == 'FC' or args.version == 'SA':
-            if args.FA:
-                scores, masks = net.forward(data)
-                scores = scores.view(-1, args.num_classes)
-                loss = F.nll_loss(scores, targets) + FA_loss(masks, attention[:, :, 8:216:16, 8:216:16], targets)
-            else:
-                scores, masks = net.forward(data)
-                scores = scores.view(-1, args.num_classes)
-                loss = F.nll_loss(scores, targets)
-            # compute the accuracy
-            pred = scores.data.max(1)[1]  # get the index of the max log-probability
-            correct += pred.eq(targets.data).cpu().sum()
+        if args.FSA:
+            scores, masks = net.forward(data)
+            scores = scores.view(-1, args.num_classes)
+            loss = F.nll_loss(scores, targets) + FSA_loss(masks, attention[:, :, 8:216:16, 8:216:16], targets)
+        else:
+            scores, masks = net.forward(data)
+            scores = scores.view(-1, args.num_classes)
+            loss = F.nll_loss(scores, targets)
+        # compute the accuracy
+        pred = scores.data.max(1)[1]  # get the index of the max log-probability
+        correct += pred.eq(targets.data).cpu().sum()
 
         epoch_loss.append(loss.item())
         loss.backward()
@@ -395,16 +319,10 @@ def train(net, epoch):
     with open(os.path.join(args.output_dir, "logs.txt"), "a") as f:
         f.write("\n------------------------\nAverage loss for epoch = {:.2f}\n".format(avg_loss))
 
-    if args.version == '1_0' or args.version == '1_1' or args.version == 'FC' or args.version == 'SA':
-        train_accuracy = 100.0*correct/float(len(train_loader.dataset))
-        print("Accuracy for epoch = {:.2f}%\n------------------------".format(train_accuracy))
-        with open(os.path.join(args.output_dir, "logs.txt"), "a") as f:
-            f.write("Accuracy for epoch = {:.2f}%\n------------------------\n".format(train_accuracy))
-    else:
-        train_accuracy = None
-        print("------------------------")
-        with open(os.path.join(args.output_dir, "logs.txt"), "a") as f:
-            f.write("------------------------\n")
+    train_accuracy = 100.0*correct/float(len(train_loader.dataset))
+    print("Accuracy for epoch = {:.2f}%\n------------------------".format(train_accuracy))
+    with open(os.path.join(args.output_dir, "logs.txt"), "a") as f:
+        f.write("Accuracy for epoch = {:.2f}%\n------------------------\n".format(train_accuracy))
     
     return net, avg_loss, train_accuracy
 
@@ -490,13 +408,13 @@ if __name__ == '__main__':
         fig1, ax1 = plt.subplots()
         plt.grid(True)
         train_loss = list()
-        if args.version == '1_0' or args.version == '1_1' or args.version == 'FC' or args.version == 'SA':
-            fig2, ax2 = plt.subplots()
-            plt.grid(True)
-            ax2.plot([], 'g', label='Train accuracy')
-            ax2.plot([], 'b', label='Validation accuracy')
-            ax2.legend()
-            train_acc, val_acc = list(), list()
+
+        fig2, ax2 = plt.subplots()
+        plt.grid(True)
+        ax2.plot([], 'g', label='Train accuracy')
+        ax2.plot([], 'b', label='Validation accuracy')
+        ax2.legend()
+        train_acc, val_acc = list(), list()
         for i in range(1, args.epochs+1):
             net, avg_loss, acc = train(net, i)
             # plot the loss
@@ -504,16 +422,12 @@ if __name__ == '__main__':
             ax1.plot(train_loss, 'k')
             fig1.savefig(os.path.join(args.output_dir, "train_loss.jpg"))
 
-            if args.version == 'dist' or args.version == 'dist_SA':
-                # save snapshot after every epoch (since no validation run)
-                torch.save(net.state_dict(), os.path.join(args.output_dir, 'squeezenet_' + args.version + '_' + str(i).zfill(3) + '.pth'))
-            elif args.version == '1_0' or args.version == '1_1' or args.version == 'FC' or args.version == 'SA':
-                # plot the train and val accuracies
-                train_acc.append(acc)
-                val_acc.append(val(net))
-                ax2.plot(train_acc, 'g', label='Train accuracy')
-                ax2.plot(val_acc, 'b', label='Validation accuracy')
-                fig2.savefig(os.path.join(args.output_dir, 'train_val_accuracy.jpg'))
+            # plot the train and val accuracies
+            train_acc.append(acc)
+            val_acc.append(val(net))
+            ax2.plot(train_acc, 'g', label='Train accuracy')
+            ax2.plot(val_acc, 'b', label='Validation accuracy')
+            fig2.savefig(os.path.join(args.output_dir, 'trainval_accuracy.jpg'))
         plt.close('all')
     else:
         test(net)
