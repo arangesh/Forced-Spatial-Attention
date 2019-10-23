@@ -34,7 +34,7 @@ parser.add_argument('--momentum', type=float, default=0.9, metavar='M', help='mo
 parser.add_argument('--weight-decay', type=float, default=0.0005, metavar='WD', help='weight decay')
 parser.add_argument('--log-schedule', type=int, default=10, metavar='N', help='number of iterations to print/save log after')
 parser.add_argument('--seed', type=int, default=1, help='set seed to some constant value to reproduce experiments')
-parser.add_argument('--FSA', action='store_true', default=False, help='used forced spatial attention loss for training')
+parser.add_argument('--FSA', action='store_true', default=False, help='use forced spatial attention loss for training')
 parser.add_argument('--no-cuda', action='store_true', default=False, help='do not use cuda for training')
 parser.add_argument('--random-transforms', action='store_true', default=False, help='apply random transforms to input while training')
 

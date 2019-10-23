@@ -20,7 +20,7 @@ from PIL import Image
 parser = argparse.ArgumentParser('Options for FAFAC model demo in PyTorch...')
 parser.add_argument('--video', type=str, default=None, help='path to input video')
 parser.add_argument('--snapshot', type=str, default=None, help='use a pre-trained model snapshot')
-parser.add_argument('--version', type=str, default=None, help='which version of SqueezeNet to load (1_0/1_1/dist/dist_SA/SA)')
+parser.add_argument('--version', type=str, default=None, help='which version of SqueezeNet to load (1_0/1_1)')
 parser.add_argument('--num-classes', type=int, default=5, help="how many classes to train for")
 parser.add_argument('--no-cuda', action='store_true', default=False, help='do not use cuda for training')
 

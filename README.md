@@ -26,8 +26,8 @@ pipenv install https://download.pytorch.org/whl/cu100/torch-1.2.0-cp36-cp36m-man
 The prescribed two-stage training procedure for the classification network can be carried out as follows:
 ```shell
 pipenv shell # activate virtual environment
-python train_stage1.py --dataset-root-path=/path/to/data/
-python train_stage2.py --dataset-root-path=/path/to/data/
+python train_stage1.py --dataset-root-path=/path/to/data/ --FSA
+python train_stage2.py --dataset-root-path=/path/to/data/ --snapshot=/path/to/snapshot/from/stage1/training --FSA
 exit # exit virtual environment
 ```
 
@@ -35,7 +35,7 @@ exit # exit virtual environment
 Inference can be carried out using [this](https://github.com/arangesh/Forced-Spatial-Attention/blob/master/demo.py) script as follows:
 ```shell
 pipenv shell # activate virtual environment
-python demo.py --snapshot=/path/to/snapshot --dataset-root-path=/path/to/video/
+python demo.py --video=/path/to/video/ --snapshot=/path/to/snapshot
 exit # exit virtual environment
 ```
 
