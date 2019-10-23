@@ -13,7 +13,6 @@ matplotlib = "*"
 scipy = "*"
 opencv-python = "*"
 sklearn = "*"
-torch-cuda80 = {file = "https://download.pytorch.org/whl/torch_cuda80-0.1.6.post20-cp35-cp35m-linux_x86_64.whl"}
 
 [requires]
 python_version = "3.6"
