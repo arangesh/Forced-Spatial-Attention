@@ -28,7 +28,7 @@ parser.add_argument('--output-dir', type=str, default=None, help='output directo
 parser.add_argument('--snapshot', type=str, default=None, help='use a pre-trained model snapshot')
 parser.add_argument('--batch-size', type=int, default=64, metavar='N', help='batch size for training')
 parser.add_argument('--num-classes', type=int, default=5, help="how many classes to train for")
-parser.add_argument('--epochs', type=int, default=30, metavar='N', help='number of epochs to train for')
+parser.add_argument('--epochs', type=int, default=15, metavar='N', help='number of epochs to train for')
 parser.add_argument('--learning-rate', type=float, default=0.0005, metavar='LR', help='learning rate')
 parser.add_argument('--momentum', type=float, default=0.9, metavar='M', help='momentum for gradient step')
 parser.add_argument('--weight-decay', type=float, default=0.0005, metavar='WD', help='weight decay')
