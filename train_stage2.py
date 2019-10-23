@@ -216,16 +216,15 @@ def get_classification_data(split):
 
         print('Loaded %d foot images!' % len(labels))
 
-    attention_masks = loadmat('./matlab/stage2_attention_mask.mat')['masks']  # (H, W, num_classes)
+    attention_masks = loadmat('./matlab/stage2_attention_mask.mat')
     time.sleep(1)
     return images, np.array(labels, dtype='int64'), attention_masks
 
 
 class Dataset(data.Dataset):
-    def __init__(self, version, split='train', random_transforms=False):
+    def __init__(self, split='train', random_transforms=False):
         'Initialization'
         print('Preparing '+split+' dataset...')
-        self.version = version
         self.split = split
         
         self.prepare_input = transforms.Compose([transforms.Resize((224, 224)), transforms.ToTensor()])
@@ -249,28 +248,31 @@ class Dataset(data.Dataset):
         'Generates one sample of data'
         y = self.labels[index]
         im = Image.fromarray(cv2.cvtColor(cv2.imread(self.images[index]), cv2.COLOR_BGR2RGB))
+        original_masks = self.attention_masks['class'+str(y)+'_masks']
 
         if self.transforms is None:
             X = self.normalize(self.prepare_input(im))
-            attention_masks_1 = self.prepare_input(Image.fromarray(self.attention_masks[:, :, :3]))
-            attention_masks_2 = self.prepare_input(Image.fromarray(self.attention_masks[:, :, 2:]))
-            attention_masks = torch.cat((attention_masks_1, attention_masks_2[1:, :, :]), 0)
+            attention_masks = self.prepare_input(Image.fromarray(original_masks[:, :, :3]))
+            if original_masks.shape[2] > 3:
+                for ch in range(3, original_masks.shape[2], 3):
+                    attention_masks = torch.cat((attention_masks, self.prepare_input(Image.fromarray(original_masks[:, :, ch:ch+3]))), 0)
         else:
             # create explicit seed so that same random transform is applied to both image and mask
             seed = random.randint(0,2**32)
             random.seed(seed)
             X = self.normalize(self.transforms(im))
             random.seed(seed)
-            attention_masks_1 = self.transforms(Image.fromarray(self.attention_masks[:, :, :3]))
-            random.seed(seed)
-            attention_masks_2 = self.transforms(Image.fromarray(self.attention_masks[:, :, 2:]))
-            attention_masks = torch.cat((attention_masks_1, attention_masks_2[1:, :, :]), 0)
+            attention_masks = self.transforms(Image.fromarray(original_masks[:, :, :3]))
+            if original_masks.shape[2] > 3:
+                for ch in range(3, original_masks.shape[2], 3):
+                    random.seed(seed)
+                    attention_masks = torch.cat((attention_masks, self.transforms(Image.fromarray(original_masks[:, :, ch:ch+3]))), 0)
         return X, attention_masks, y
 
 
 kwargs = {'batch_size': args.batch_size, 'shuffle': True, 'num_workers': 6}
-train_loader = torch.utils.data.DataLoader(Dataset(args.version, 'train', args.random_transforms), **kwargs)
-val_loader = torch.utils.data.DataLoader(Dataset(args.version, 'val', False), **kwargs)
+train_loader = torch.utils.data.DataLoader(Dataset('train', args.random_transforms), **kwargs)
+val_loader = torch.utils.data.DataLoader(Dataset('val', False), **kwargs)
 
 # global var to store best validation accuracy across all epochs
 best_accuracy = 0.0

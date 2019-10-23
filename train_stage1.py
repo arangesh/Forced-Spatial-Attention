@@ -214,10 +214,9 @@ def get_classification_data(split):
 
 
 class Dataset(data.Dataset):
-    def __init__(self, version, split='train', random_transforms=False):
+    def __init__(self, split='train', random_transforms=False):
         'Initialization'
         print('Preparing '+split+' dataset...')
-        self.version = version
         self.split = split
         
         self.prepare_input = transforms.Compose([transforms.Resize((224, 224)), transforms.ToTensor()])
@@ -261,8 +260,8 @@ class Dataset(data.Dataset):
 
 
 kwargs = {'batch_size': args.batch_size, 'shuffle': True, 'num_workers': 6}
-train_loader = torch.utils.data.DataLoader(Dataset(args.version, 'train', args.random_transforms), **kwargs)
-val_loader = torch.utils.data.DataLoader(Dataset(args.version, 'val', False), **kwargs)
+train_loader = torch.utils.data.DataLoader(Dataset('train', args.random_transforms), **kwargs)
+val_loader = torch.utils.data.DataLoader(Dataset('val', False), **kwargs)
 
 # global var to store best validation accuracy across all epochs
 best_accuracy = 0.0
