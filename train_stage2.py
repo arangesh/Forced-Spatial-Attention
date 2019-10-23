@@ -35,14 +35,11 @@ parser.add_argument('--log-schedule', type=int, default=10, metavar='N', help='n
 parser.add_argument('--seed', type=int, default=1, help='set seed to some constant value to reproduce experiments')
 parser.add_argument('--FSA', action='store_true', default=False, help='used forced spatial attention loss for training')
 parser.add_argument('--no-cuda', action='store_true', default=False, help='do not use cuda for training')
-parser.add_argument('--inference', action='store_true', default=False, help='perform inference')
 parser.add_argument('--random-transforms', action='store_true', default=False, help='apply random transforms to input while training')
 
 
 args = parser.parse_args()
 # check args
-if args.inference and args.snapshot is None:
-    assert False, 'No model snapshot provided for inference!'
 if args.FSA and (args.version == 'FC'):
     assert False, 'Cannot use this model version for forced attention loss!'
 if all(args.version != x for x in ['1_0', '1_1', 'FC']):
@@ -269,11 +266,8 @@ class Dataset(data.Dataset):
 
 
 kwargs = {'batch_size': args.batch_size, 'shuffle': True, 'num_workers': 6}
-if args.inference:
-    test_loader = torch.utils.data.DataLoader(Dataset(args.version, 'test', False), **kwargs)
-else:
-    train_loader = torch.utils.data.DataLoader(Dataset(args.version, 'train', args.random_transforms), **kwargs)
-    val_loader = torch.utils.data.DataLoader(Dataset(args.version, 'val', False), **kwargs)
+train_loader = torch.utils.data.DataLoader(Dataset(args.version, 'train', args.random_transforms), **kwargs)
+val_loader = torch.utils.data.DataLoader(Dataset(args.version, 'val', False), **kwargs)
 
 # global var to store best validation accuracy across all epochs
 best_accuracy = 0.0
@@ -370,35 +364,6 @@ def val(net):
     return val_accuracy
 
 
-# inference function
-def test(net):
-    correct = 0
-    total_examples = 0
-    net.eval()
-    pred_all = np.array([], dtype='int64')
-    target_all = np.array([], dtype='int64')
-    
-    for idx, (data, attention, target) in enumerate(test_loader):
-        total_examples += len(target)
-        data, attention, target = Variable(data), Variable(attention), Variable(target)
-        if args.cuda:
-            data, attention, target = data.cuda(), attention.cuda(), target.cuda()
-
-        scores = net(data)[0]
-        scores = scores.view(-1, args.num_classes)
-        pred = scores.data.max(1)[1]
-        correct += pred.eq(target.data).cpu().sum()
-        print('Done with image {} out {}...'.format(min(args.batch_size*(idx+1), len(test_loader.dataset)), len(test_loader.dataset)))
-        pred_all   = np.append(pred_all, pred.cpu().numpy())
-        target_all = np.append(target_all, target.cpu().numpy())
-
-    print("------------------------\nPredicted {} out of {} correctly".format(correct, len(test_loader.dataset)))
-    test_accuracy = 100.0 * correct / len(test_loader.dataset)
-    print("Test accuracy = {:.2f}%\n------------------------".format(test_accuracy))
-    plot_confusion_matrix(target_all, pred_all, activity_classes)
-    return
-
-
 if __name__ == '__main__':
     # get the model, load pretrained weights, and convert it into cuda for if necessary
     net = model.squeezenet(args.version, args.snapshot)
@@ -409,30 +374,27 @@ if __name__ == '__main__':
     # create a temporary optimizer
     optimizer = optim.SGD(net.parameters(), lr=args.learning_rate, momentum=args.momentum, weight_decay=args.weight_decay)
 
-    if not args.inference:
-        fig1, ax1 = plt.subplots()
-        plt.grid(True)
-        train_loss = list()
+    fig1, ax1 = plt.subplots()
+    plt.grid(True)
+    train_loss = list()
 
-        fig2, ax2 = plt.subplots()
-        plt.grid(True)
-        ax2.plot([], 'g', label='Train accuracy')
-        ax2.plot([], 'b', label='Validation accuracy')
-        ax2.legend()
-        train_acc, val_acc = list(), list()
-        for i in range(1, args.epochs+1):
-            net, avg_loss, acc = train(net, i)
-            # plot the loss
-            train_loss.append(avg_loss)
-            ax1.plot(train_loss, 'k')
-            fig1.savefig(os.path.join(args.output_dir, "train_loss.jpg"))
+    fig2, ax2 = plt.subplots()
+    plt.grid(True)
+    ax2.plot([], 'g', label='Train accuracy')
+    ax2.plot([], 'b', label='Validation accuracy')
+    ax2.legend()
+    train_acc, val_acc = list(), list()
+    for i in range(1, args.epochs+1):
+        net, avg_loss, acc = train(net, i)
+        # plot the loss
+        train_loss.append(avg_loss)
+        ax1.plot(train_loss, 'k')
+        fig1.savefig(os.path.join(args.output_dir, "train_loss.jpg"))
 
-            # plot the train and val accuracies
-            train_acc.append(acc)
-            val_acc.append(val(net))
-            ax2.plot(train_acc, 'g', label='Train accuracy')
-            ax2.plot(val_acc, 'b', label='Validation accuracy')
-            fig2.savefig(os.path.join(args.output_dir, 'trainval_accuracy.jpg'))
-        plt.close('all')
-    else:
-        test(net)
+        # plot the train and val accuracies
+        train_acc.append(acc)
+        val_acc.append(val(net))
+        ax2.plot(train_acc, 'g', label='Train accuracy')
+        ax2.plot(val_acc, 'b', label='Validation accuracy')
+        fig2.savefig(os.path.join(args.output_dir, 'trainval_accuracy.jpg'))
+    plt.close('all')
