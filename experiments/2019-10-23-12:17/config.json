@@ -1,0 +1,1 @@
+{"dataset_root_path": "/home/cvrr/data/foot-train-dataset/", "version": "1_1", "output_dir": "./experiments/2019-10-23-12:17", "snapshot": null, "batch_size": 64, "num_classes": 5, "epochs": 15, "learning_rate": 0.0005, "momentum": 0.9, "weight_decay": 0.0005, "log_schedule": 10, "seed": 1, "FSA": true, "no_cuda": false, "random_transforms": false, "cuda": true}

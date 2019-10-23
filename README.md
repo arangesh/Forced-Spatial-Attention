@@ -27,8 +27,8 @@ pipenv install https://download.pytorch.org/whl/cu100/torchvision-0.3.0-cp36-cp3
 The prescribed two-stage training procedure for the classification network can be carried out as follows:
 ```shell
 pipenv shell # activate virtual environment
-python train_stage1.py --dataset-root-path=/path/to/dataset/ --FSA
-python train_stage2.py --dataset-root-path=/path/to/dataset/ --snapshot=/path/to/snapshot/from/stage1/training --FSA
+python train_stage1.py --dataset-root-path=/path/to/dataset/ --version=1_1 --FSA
+python train_stage2.py --dataset-root-path=/path/to/dataset/ --snapshot=/path/to/snapshot/from/stage1/training --version=1_1 --FSA
 exit # exit virtual environment
 ```
 
