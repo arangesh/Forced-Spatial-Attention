@@ -12,7 +12,7 @@ numpy = "*"
 pillow = "*"
 matplotlib = "*"
 scipy = "*"
-cv2 = "*"
+opencv-python = "*"
 sklearn = "*"
 
 [requires]
