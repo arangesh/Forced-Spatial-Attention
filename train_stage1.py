@@ -41,7 +41,7 @@ parser.add_argument('--random-transforms', action='store_true', default=False, h
 
 args = parser.parse_args()
 # check args
-if if args.dataset_root_path is None:
+if args.dataset_root_path is None:
     assert False, 'Path to dataset not provided!'
 if args.FSA and (args.version == 'FC'):
     assert False, 'Cannot use this model version for forced attention loss!'

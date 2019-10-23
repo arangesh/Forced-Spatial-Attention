@@ -22,6 +22,7 @@ from sklearn.metrics import confusion_matrix
 from sklearn.utils.multiclass import unique_labels
 
 parser = argparse.ArgumentParser('Options for training models using Forced Spatial Attention in PyTorch...')
+parser.add_argument('--dataset-root-path', type=str, default=None, help='path to dataset')
 parser.add_argument('--version', type=str, default=None, help='which version of SqueezeNet to load (1_0/1_1/FC)')
 parser.add_argument('--output-dir', type=str, default=None, help='output directory for model and logs')
 parser.add_argument('--snapshot', type=str, default=None, help='use a pre-trained model snapshot')
@@ -40,6 +41,8 @@ parser.add_argument('--random-transforms', action='store_true', default=False, h
 
 args = parser.parse_args()
 # check args
+if args.dataset_root_path is None:
+    assert False, 'Path to dataset not provided!'
 if args.FSA and (args.version == 'FC'):
     assert False, 'Cannot use this model version for forced attention loss!'
 if all(args.version != x for x in ['1_0', '1_1', 'FC']):
