@@ -36,7 +36,7 @@ exit # exit virtual environment
 Pretrained weights for SqueezeNet v1.1 using the two-stage FSA loss can be found [here](https://github.com/arangesh/Forced-Spatial-Attention/blob/master/weights/squeezenet_1_1.pth). Inference can be carried out using [this](https://github.com/arangesh/Forced-Spatial-Attention/blob/master/demo.py) script as follows:
 ```shell
 pipenv shell # activate virtual environment
-python demo.py --video=/path/to/dataset/foot.mp4 --snapshot=/path/to/snapshot
+python demo.py --video=/path/to/dataset/foot.mp4 --snapshot=/path/to/snapshot --version=1_1
 exit # exit virtual environment
 ```
 
