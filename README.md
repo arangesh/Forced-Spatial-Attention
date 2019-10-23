@@ -20,7 +20,7 @@ pipenv install https://download.pytorch.org/whl/cu100/torch-1.2.0-cp36-cp36m-man
 
 ## Dataset
 1) Download the trainval dataset for driver foot activity classification using [this link]().
-2) Unzip the data
+2) Extract the data.
 
 ## Training
 The prescribed two-stage training procedure for the classification network can be carried out as follows:
