@@ -27,13 +27,13 @@ pipenv install https://download.pytorch.org/whl/cu100/torchvision-0.3.0-cp36-cp3
 The prescribed two-stage training procedure for the classification network can be carried out as follows:
 ```shell
 pipenv shell # activate virtual environment
-python train_stage1.py --dataset-root-path=/path/to/dataset/ --version=1_1 --FSA
+python train_stage1.py --dataset-root-path=/path/to/dataset/ --snapshot=./weights/squeezenet1_1_imagenet.pth --version=1_1 --FSA
 python train_stage2.py --dataset-root-path=/path/to/dataset/ --snapshot=/path/to/snapshot/from/stage1/training --version=1_1 --FSA
 exit # exit virtual environment
 ```
 
 ## Inference
-Inference can be carried out using [this](https://github.com/arangesh/Forced-Spatial-Attention/blob/master/demo.py) script as follows:
+Pretrained weights for SqueezeNet v1.1 using the two-stage FSA loss can be found [here](https://github.com/arangesh/Forced-Spatial-Attention/blob/master/weights/squeezenet_1_1.pth). Inference can be carried out using [this](https://github.com/arangesh/Forced-Spatial-Attention/blob/master/demo.py) script as follows:
 ```shell
 pipenv shell # activate virtual environment
 python demo.py --video=/path/to/dataset/foot.mp4 --snapshot=/path/to/snapshot
