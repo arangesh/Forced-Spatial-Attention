@@ -323,11 +323,11 @@ def train(net, epoch):
     with open(os.path.join(args.output_dir, "logs.txt"), "a") as f:
         f.write("\n------------------------\nAverage loss for epoch = {:.2f}\n".format(avg_loss))
 
-    train_accuracy = 100.0*correct/float(len(train_loader.dataset))
+    train_accuracy = 100.0*float(correct)/float(len(train_loader.dataset))
     print("Accuracy for epoch = {:.2f}%\n------------------------".format(train_accuracy))
     with open(os.path.join(args.output_dir, "logs.txt"), "a") as f:
         f.write("Accuracy for epoch = {:.2f}%\n------------------------\n".format(train_accuracy))
-    
+
     return net, avg_loss, train_accuracy
 
 
@@ -354,7 +354,7 @@ def val(net):
         target_all = np.append(target_all, target.cpu().numpy())
 
     print("------------------------\nPredicted {} out of {}".format(correct, len(val_loader.dataset)))
-    val_accuracy = 100.0*correct/len(val_loader.dataset)
+    val_accuracy = 100.0*float(correct)/len(val_loader.dataset)
     print("Validation accuracy = {:.2f}%\n------------------------".format(val_accuracy))
     with open(os.path.join(args.output_dir, "logs.txt"), "a") as f:
         f.write("\n------------------------\nPredicted {} out of {}\n".format(correct, len(val_loader.dataset)))
@@ -366,6 +366,7 @@ def val(net):
         # save the model
         torch.save(net.state_dict(), os.path.join(args.output_dir, 'squeezenet_' + args.version + '.pth'))
         plot_confusion_matrix(target_all, pred_all, activity_classes)
+
     return val_accuracy
 
 
