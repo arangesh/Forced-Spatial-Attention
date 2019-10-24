@@ -355,6 +355,7 @@ def val(net):
         # save the model
         torch.save(net.state_dict(), os.path.join(args.output_dir, 'squeezenet_' + args.version + '.pth'))
         plot_confusion_matrix(target_all, pred_all, activity_classes)
+
     return val_accuracy
 
 
