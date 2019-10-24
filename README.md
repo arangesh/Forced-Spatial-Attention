@@ -20,7 +20,7 @@ pipenv install https://download.pytorch.org/whl/cu100/torchvision-0.3.0-cp36-cp3
 ```
 
 ## Dataset
-1) Download the trainval dataset for driver foot activity classification using [this link]().
+1) Download the trainval dataset for driver foot activity classification using [this link](https://drive.google.com/open?id=1pIuH7EtwTOocW7S6YS5CTwRXi8DXjmu4).
 2) Extract the data.
 
 ## Training
