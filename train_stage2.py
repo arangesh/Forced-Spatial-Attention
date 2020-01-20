@@ -349,7 +349,7 @@ def val(net):
         scores = scores.view(-1, args.num_classes)
         pred = scores.data.max(1)[1]  # got the indices of the maximum, match them
         correct += pred.eq(target.data).cpu().sum()
-        print('Done with image {} out {}...'.format(min(args.batch_size*(idx+1), len(val_loader.dataset)), len(val_loader.dataset)))
+        print('Done with image {} out of {}...'.format(min(args.batch_size*(idx+1), len(val_loader.dataset)), len(val_loader.dataset)))
         pred_all   = np.append(pred_all, pred.cpu().numpy())
         target_all = np.append(target_all, target.cpu().numpy())
 
