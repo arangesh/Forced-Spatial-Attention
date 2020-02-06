@@ -1,6 +1,6 @@
 # Forced Spatial Attention for Driver Foot Activity Classification
 
-Pytorch implementation for the training procedure described in [Forced Spatial Attention for Driver Foot Activity Classification](http://cvrr.ucsd.edu/publications/2019/FSAFAC.pdf).
+PyTorch implementation for the training procedure described in [Forced Spatial Attention for Driver Foot Activity Classification](http://cvrr.ucsd.edu/publications/2019/FSAFAC.pdf).
 
 ## Installation
 1) Clone this repository
